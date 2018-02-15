@@ -1,38 +1,35 @@
 
 var points = [];
 var colors = [];
-
 var gl;
 var program;
 
 var file;
 var fileString;
-
+var fudgeFactor = -0.1;
 var ply_vertices = 0;
 var ply_poly = 0;
 var isReading = false;
 var vao_index = 0;
 var poly_index = 0;
 
-var aVertex= [];
-var aPoly = [];
-var aIndex = [];
-
-var vertices = [];
+var iVertices = [];
+var fVertices = [];
 var triangles = [];
+var normals = [];
+
+var theta = 0;
 
 // Renders one triangle
-// Input:
+// Input: 3 vertices
+var then = 0;
+
 function render_triangle(a, b, c)
 {
-    for(var i = 0; i < vertices.length; i++){
-        vertices[i] = scale(1, vertices[i]);
-    }
-
     points = [];
-    points.push(vec4(vertices[a][0], vertices[a][1], vertices[a][2], 1));
-    points.push(vec4(vertices[b][0], vertices[b][1], vertices[b][2], 1));
-    points.push(vec4(vertices[c][0], vertices[c][1], vertices[c][2], 1));
+    points.push(vec4(fVertices[a][0], fVertices[a][1], fVertices[a][2], 1));
+    points.push(vec4(fVertices[b][0], fVertices[b][1], fVertices[b][2], 1));
+    points.push(vec4(fVertices[c][0], fVertices[c][1], fVertices[c][2], 1));
 
 
     colors = [];
@@ -56,17 +53,96 @@ function render_triangle(a, b, c)
     gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vColor);
 
+
     gl.drawArrays(gl.LINE_LOOP, 0, points.length); //Draw arrays into triangles
 }
 
+
+
 // Establishes the event listener for file loading
 function main(){
+
     var inputElement = document.getElementById('input'); //Get input element from the load file button
     inputElement.addEventListener('change', loadFile, false); //Add event listener that calls loadFile
+
+    var rotating = false;
+    var direction = 0; //Not moving
+
+    document.addEventListener('keydown', function(event){
+        if(event.keyCode == 88){
+            if(direction == 1){
+                direction = 0;
+            } else {
+                direction = 1;
+            }
+        }
+
+        if(event.keyCode == 67){
+            if(direction == -1){
+                direction = 0;
+            } else {
+                direction = -1;
+            }
+        }
+
+        if(event.keyCode == 89){
+            if(direction == 2){
+                direction = 0;
+            } else {
+                direction = 2;
+            }
+        }
+
+        if(event.keyCode == 85){
+            if(direction == -2){
+                direction = 0;
+            } else {
+                direction = -2;
+            }
+        }
+
+        if(event.keyCode == 90){
+            if(direction == 1){
+                direction = 0;
+            } else {
+                direction = 1;
+            }
+        }
+
+        if(event.keyCode == 65){
+            if(direction == 3){
+                direction = 0;
+            } else {
+                direction = 3;
+            }
+        }
+
+        if(event.keyCode == 82){
+            if(direction == -3){
+                direction = 0;
+            } else {
+                direction = -3;
+            }
+        }
+
+        if(event.keyCode == 66){
+            if(rotating){
+                rotating = false;
+            } else {
+                rotating = true;
+            }
+        }
+    });
 }
 
 // Iterates through aPoly (list of triangles) and renders them
-function render(){
+function render() {
+    // var ctMatrix = rotateX(theta);
+    // theta +=1;
+    //
+    // var modelMatrix = gl.getUniformLocation(program, 'modelMatrix');
+    // gl.uniformMatrix4fv(modelMatrix, false, flatten(ctMatrix));
+
     //Retrieve the <canvas> element
     var canvas = document.getElementById('webgl');
     document.getElementById('input').addEventListener('change', loadFile, false);
@@ -74,8 +150,7 @@ function render(){
     gl = WebGLUtils.setupWebGL(canvas, undefined);
 
     //Check that the rendering context isn't null
-    if(!gl)
-    {
+    if (!gl) {
         console.log('Failed to get the rendering context for WebGL.');
         return;
     }
@@ -85,25 +160,23 @@ function render(){
     gl.useProgram(program);
 
     //Initialize viewport
-    gl.viewport( 0, 0, 400, 400);
+    gl.viewport(0, 0, 400, 400);
 
     //Set the clear color
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
 
-    for(var j = 0; j < aPoly.length; j++){
-        vertices.push([parseFloat(aPoly[j].a.x), parseFloat(aPoly[j].a.y), parseFloat(aPoly[j].a.z)]);
-        vertices.push([parseFloat(aPoly[j].b.x), parseFloat(aPoly[j].b.y), parseFloat(aPoly[j].b.z)]);
-        vertices.push([parseFloat(aPoly[j].c.x), parseFloat(aPoly[j].c.y), parseFloat(aPoly[j].c.z)]);
+    for (var j = 0; j < triangles.length; j++) {
+        fVertices.push([triangles[j][0][0], triangles[j][0][1], triangles[j][0][2]]);
+        fVertices.push([triangles[j][1][0], triangles[j][1][1], triangles[j][1][2]]);
+        fVertices.push([triangles[j][2][0], triangles[j][2][1], triangles[j][2][2]]);
     }
 
-    var data = new plyData(vertices);
+    var data = new plyData(fVertices);
 
     var transformMatrix = translate(-data.midX, -data.midY, -data.midZ);
-
-    var scaleMatrix = scalem(1/(data.width/2), 1/(data.height/2), 1/(data.depth/2));
-
+    var scaleMatrix = scalem(1 / (data.width / 1.6), 1 / (data.height / 1.6), 1 / (data.depth / 1.6));
 
     var translateMatrixLocation = gl.getUniformLocation(program, 'translateMatrix');
     var scaleMatrixLocation = gl.getUniformLocation(program, 'scaleMatrix');
@@ -111,16 +184,21 @@ function render(){
     gl.uniformMatrix4fv(scaleMatrixLocation, false, flatten(scaleMatrix));
     gl.uniformMatrix4fv(translateMatrixLocation, false, flatten(transformMatrix));
 
-    for(var k = 0;k < vertices.length; k+=3){
-        render_triangle(k, k+1, k+2);
+    var fudgeLocation = gl.getUniformLocation(program, "fudgeFactor");
+
+    gl.uniform1f(fudgeLocation, fudgeFactor);
+
+    for (var k = 0; k < fVertices.length; k += 3) {
+        render_triangle(k, k + 1, k + 2);
     }
+
+    //requestAnimationFrame(render);
 }
+
 
 // Loads file and captures data
 // Calls render function
 function loadFile(event) {
-    aVertex = [];
-    aPoly = [];
 
     file = event.target.files[0];       //Store the file
     var reader = new FileReader();  //Make new FileReader
@@ -132,9 +210,6 @@ function loadFile(event) {
 
         var ply_index = 0;
 
-        var vertices = [];
-        var polys = [];
-
         console.log("# of lines in file: " + lines.length);
 
         for (var i = 0; i < lines.length; i++){
@@ -143,13 +218,7 @@ function loadFile(event) {
 
                 //Read vertices from file
                 if(ply_index < ply_vertices){
-                    vertices[ply_index] = new plyVertex();
-                    vertices[ply_index].x = e[0];
-                    vertices[ply_index].y = e[1];
-                    vertices[ply_index].z = e[2];
-
-                    aVertex.push(vertices[ply_index]);
-
+                    iVertices[ply_index] = [parseFloat(e[0]), parseFloat(e[1]), parseFloat(e[2])];
 
                 //Read faces from file
                 } else {
@@ -164,15 +233,8 @@ function loadFile(event) {
 
                     //Store face data
                     if(poly_index < ply_poly){
-                        polys[poly_index] = new plyPoly();
-                        polys[poly_index].a = vertices[e[1]];
-                        polys[poly_index].b = vertices[e[2]];
-                        polys[poly_index].c = vertices[e[3]];
-
-                        aPoly.push(polys[poly_index]);
-
-                        // index
-                        aIndex.push(poly_index);
+                        triangles[poly_index] = [iVertices[e[1]], iVertices[e[2]], iVertices[e[3]]];
+                        normals[poly_index] = calculateNormal(triangles[poly_index]);
                     }
 
                     poly_index++;
@@ -187,48 +249,22 @@ function loadFile(event) {
                 if(lines[i].substr(0, "element face".length) == "element face")
                     ply_poly = lines[i].split(" ")[2];
             }
-            // Done with header, allocate space for data
+            // Done with header
             if (lines[i] == "end_header"){
-                vertices = new Array(ply_vertices);
-
-                polys = new Array(ply_poly);
-
-                aVertex = new Array();
-                aPoly = new Array();
-                aIndex = new Array();
-
                 isReading = true;
             }
         }
 
         console.log("ply_vertices: " + ply_vertices);
         console.log("ply_poly: " + ply_poly);
-        console.log("aVertex length: " + aVertex.length);
-        console.log("aPoly length: " + aPoly.length);
-        console.log("aIndex length: " + aIndex.length);
+        console.log("Vertices length: " + iVertices.length);
+        console.log("Triangles length: " + triangles.length);
 
         render();
     };
 
     console.log("Loading file: <" + file.name + ">...");
 
-}
-
-// PLY file vertex format
-function plyVertex(x, y, z){
-    this.x = 0;     //Position
-    this.y = 0;
-    this.z = 0;
-}
-
-// PLY file polygon format
-function plyPoly(a, b, c){
-    this.a = a;     // 3 vertices
-    this.b = b;
-    this.c = c;
-    this.mx;
-    this.my;
-    this.mz;
 }
 
 function plyData(v){
@@ -264,8 +300,18 @@ function plyData(v){
     this.height = this.maxYpos-this.minYpos;
     this.depth = this.maxZpos-this.minZpos;
 }
-//
-// function calculateNormal(vertices){
-//     for( var i = 0; i < vertices)
-//
-// }
+
+// Calculates normals using Newell method
+function calculateNormal(triangle){
+    var n = [0.0, 0.0, 0.0];
+    for( var i = 0; i < triangle.length; i++){
+        var vCurrent = triangle[i];
+        var vNext = triangle[(i+1) % triangle.length];
+
+        n[0] = n[0] + ((vCurrent[1] - vNext[1])*(vCurrent[2] + vNext[2]));
+        n[1] = n[1] + ((vCurrent[2] - vNext[2])*(vCurrent[0] + vNext[0]));
+        n[2] = n[2] + ((vCurrent[2] - vNext[2])*(vCurrent[1] + vNext[1]));
+    }
+
+    return normalize(n);
+}

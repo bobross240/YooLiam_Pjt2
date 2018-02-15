@@ -11,11 +11,12 @@
 	uniform mat4 projectionMatrix;
 	uniform mat4 translateMatrix;
 	uniform mat4 scaleMatrix;
+	uniform float fudgeFactor;
 	varying vec4 fColor;
 
 	void main() {
-		//gl_Position = projectionMatrix * modelMatrix * vPosition;
-		gl_Position = vPosition * translateMatrix * scaleMatrix;
+	    float zDiv = 1.0 + vPosition.z * fudgeFactor;
+		gl_Position = scaleMatrix * translateMatrix * vec4(vPosition.xy / zDiv , vPosition.zw);
   		gl_PointSize = 10.0;		// Point size
   		fColor = vColor;
   	}
