@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Project 2</title>
+
+    <script id="vshader" type="x-shader/x-vertex">
+	attribute vec4 vPosition;
+	attribute vec4 vColor;
+	uniform mat4 modelMatrix;
+	uniform mat4 projectionMatrix;
+	uniform mat4 translateMatrix;
+	uniform mat4 scaleMatrix;
+	varying vec4 fColor;
+
+	void main() {
+		//gl_Position = projectionMatrix * modelMatrix * vPosition;
+		gl_Position = vPosition * translateMatrix * scaleMatrix;
+  		gl_PointSize = 10.0;		// Point size
+  		fColor = vColor;
+  	}
+	</script>
+
+    <script id="fshader" type="x-shader/x-fragment">
+	precision mediump float;
+	varying vec4 fColor;
+
+	void main()
+	{
+		gl_FragColor = fColor;	// Point color
+  	}
+	</script>
+
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/initShaders.js"></script>
+    <script src="lib/MV.js"></script>
+
+    <script src="CS4731_Proj2.js"></script>
+
+</head>
+<body onload="main()">
+    <div style="...">
+        <canvas id="webgl" width="400" height="400" style="...">
+            Please use a browser that supports the "canvas" tag.
+        </canvas>
+    </div>
+
+    <!--upload file button-->
+    <form method="POST" id="upload" action="uploadFile" enctype="multipart/form-data">
+        <strong>Upload file:</strong>
+        <input type="file" id = 'input' name="file"/>
+    </form>
+
+</body>
+</html>
